@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 interface AuthContextType {
   user: string | null;
-  login: (username: string) => void;
+  token: string | null;
+  login: (username: string, token: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -22,20 +23,27 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<string | null>(null);
+  const [user, setUser] = useState<string | null>(localStorage.getItem('user'));
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
 
-  const login = (username: string) => {
+  const login = (username: string, token: string) => {
     setUser(username);
+    setToken(token);
+    localStorage.setItem('user', username);
+    localStorage.setItem('token', token);
   };
 
   const logout = () => {
     setUser(null);
+    setToken(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
   };
 
-  const isAuthenticated = user !== null;
+  const isAuthenticated = user !== null && token !== null;
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated }}>
+    <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated }}>
       {children}
     </AuthContext.Provider>
   );

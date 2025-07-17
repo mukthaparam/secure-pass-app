@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { authAPI } from '../services/api';
+import { authAPI, setAuthToken } from '../services/api';
 import { Shield, User, Lock, AlertCircle, ArrowLeft } from 'lucide-react';
 
 const Login: React.FC = () => {
@@ -19,7 +19,8 @@ const Login: React.FC = () => {
 
     try {
       const response = await authAPI.login({ username, password });
-      login(username);
+      setAuthToken(response.token);
+      login(username, response.token);
       navigate('/home');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed. Please try again.');

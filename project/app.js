@@ -4,8 +4,10 @@ const cors = require('cors');
 const argon2 = require('argon2');
 const crypto = require('crypto');
 require('dotenv').config();
+const SECRET_KEY = process.env.JWT_SECRET;
 
 const { connectToDB, getDB } = require('./db');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 app.use(cors());
@@ -52,6 +54,18 @@ async function verifyPassword(hashedPassword, salt, inputPassword) {
         console.error("❌ Error verifying password:", err);
         throw err;
     }
+}
+
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.sendStatus(401);
+
+  jwt.verify(token, SECRET_KEY, (err, user) => {
+    if (err) return res.sendStatus(403);
+    req.user = user;
+    next();
+  });
 }
 
 // 🟢 Connect to DB and Start Server
@@ -116,7 +130,8 @@ app.post('/login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        res.status(200).json({ message: 'Login successful', username });
+        const token = jwt.sign({ username: user.username, userId: user._id }, SECRET_KEY, { expiresIn: '1h' });
+        res.status(200).json({ message: 'Login successful', token });
     } catch (err) {
         console.error("❌ Login error:", err);
         res.status(500).json({ error: 'Login failed' });
@@ -134,3 +149,37 @@ app.get('/check-username/:username', async (req, res) => {
         res.status(500).json({ error: 'Username check failed' });
     }
 });
+
+app.get('/protected', authenticateToken, (req, res) => {
+  res.json({ message: 'This is protected data.', user: req.user });
+});
+
+// Login function
+async function login(username, password) {
+  const res = await fetch('http://localhost:3000/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+  });
+  const data = await res.json();
+  if (res.ok) {
+    localStorage.setItem('token', data.token);
+    alert('Login successful!');
+  } else {
+    alert(data.error || 'Login failed');
+  }
+}
+
+// Access protected route
+async function getProtected() {
+  const token = localStorage.getItem('token');
+  const res = await fetch('http://localhost:3000/protected', {
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  const data = await res.json();
+  if (res.ok) {
+    console.log('Protected data:', data);
+  } else {
+    alert('Access denied');
+  }
+}

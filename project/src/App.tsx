@@ -5,8 +5,14 @@ import Landing from './components/Landing';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import Home from './components/Home';
+import { setAuthToken } from './services/api';
 
 function App() {
+  React.useEffect(() => {
+    const token = localStorage.getItem('token');
+    setAuthToken(token);
+  }, []);
+
   return (
     <AuthProvider>
       <Router>

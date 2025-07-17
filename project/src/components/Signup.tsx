@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { authAPI } from '../services/api';
+import { authAPI, setAuthToken } from '../services/api';
 import { Shield, User, Lock, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 
 const Signup: React.FC = () => {
@@ -30,8 +30,13 @@ const Signup: React.FC = () => {
     setLoading(true);
 
     try {
-      await authAPI.signup({ username, password });
-      login(username);
+      const response = await authAPI.signup({ username, password });
+      if (response.token) {
+        setAuthToken(response.token);
+        login(username, response.token);
+      } else {
+        login(username, '');
+      }
       navigate('/home');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Signup failed. Please try again.');

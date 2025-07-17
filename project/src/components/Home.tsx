@@ -3,14 +3,26 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import SecurityTester from './SecurityTester';
 import { Shield, Lock, Key, Cpu, Database, CheckCircle, LogOut, User } from 'lucide-react';
+import api from '../services/api';
 
 const Home: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, token } = useAuth();
   const navigate = useNavigate();
+  const [protectedData, setProtectedData] = React.useState<string | null>(null);
+  const [showToken, setShowToken] = React.useState(false);
 
   const handleLogout = () => {
     logout();
     navigate('/');
+  };
+
+  const testProtectedEndpoint = async () => {
+    try {
+      const response = await api.get('/protected');
+      setProtectedData(JSON.stringify(response.data, null, 2));
+    } catch (err: any) {
+      setProtectedData('Access denied or error: ' + (err.response?.data?.error || err.message));
+    }
   };
 
   return (
@@ -214,6 +226,32 @@ const Home: React.FC = () => {
 
         {/* Security Testing Suite */}
         <SecurityTester />
+        <div className="mt-8 w-full max-w-5xl flex flex-col md:flex-row justify-between items-start gap-8 mx-auto">
+          <div className="flex-1 flex flex-col items-start w-full md:w-1/2">
+            <button onClick={testProtectedEndpoint} className="px-4 py-2 bg-orange-600 text-white rounded mb-4">
+              Test Protected Endpoint
+            </button>
+            {protectedData && (
+              <pre className="bg-gray-900 text-green-400 p-4 rounded mt-2 w-full max-w-xl text-left">{protectedData}</pre>
+            )}
+          </div>
+          <div className="flex-1 flex flex-col items-end w-full md:w-1/2">
+            <button
+              onClick={() => setShowToken((prev) => !prev)}
+              className="px-4 py-2 bg-orange-600 text-white rounded mb-4 self-end"
+            >
+              {showToken ? 'Hide JWT Token' : 'Show JWT Token'}
+            </button>
+            {showToken && token && (
+              <div className="w-full max-w-xl flex flex-col items-end self-end">
+                <span className="text-orange-400 font-semibold mb-2 self-end">Your JWT Token:</span>
+                <div className="bg-gray-900 text-orange-300 p-4 rounded border border-orange-400 shadow-inner w-full overflow-x-auto break-all text-sm select-all text-right self-end" style={{ wordBreak: 'break-all' }}>
+                  {token}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </main>
     </div>
   );
