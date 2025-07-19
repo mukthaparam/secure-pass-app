@@ -115,21 +115,33 @@ app.post('/user-pass', async (req, res) => {
 app.post('/login', async (req, res) => {
     try {
         const { username, password } = req.body;
+        const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress || 'Unknown';
+        const timestamp = new Date();
+        let status = 'failure';
 
         if (!username || !password) {
+            // Log attempt
+            await db.collection('login_attempts').insertOne({ username, status, ip, location: 'Unknown', timestamp });
             return res.status(400).json({ error: 'Username and password are required' });
         }
 
         const user = await db.collection('user_password').findOne({ username });
         if (!user) {
+            // Log attempt
+            await db.collection('login_attempts').insertOne({ username, status, ip, location: 'Unknown', timestamp });
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
         const isPasswordValid = await verifyPassword(user.password, username, password);
         if (!isPasswordValid) {
+            // Log attempt
+            await db.collection('login_attempts').insertOne({ username, status, ip, location: 'Unknown', timestamp });
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
+        // Success
+        status = 'success';
+        await db.collection('login_attempts').insertOne({ username, status, ip, location: 'Unknown', timestamp });
         const token = jwt.sign({ username: user.username, userId: user._id }, SECRET_KEY, { expiresIn: '1h' });
         res.status(200).json({ message: 'Login successful', token });
     } catch (err) {
@@ -147,6 +159,21 @@ app.get('/check-username/:username', async (req, res) => {
     } catch (err) {
         console.error("❌ Username check failed:", err);
         res.status(500).json({ error: 'Username check failed' });
+    }
+});
+
+// Fetch login attempts for a user
+app.get('/login-attempts/:username', async (req, res) => {
+    try {
+        const { username } = req.params;
+        const attempts = await db.collection('login_attempts')
+            .find({ username })
+            .sort({ timestamp: -1 })
+            .toArray();
+        res.status(200).json({ attempts });
+    } catch (err) {
+        console.error('❌ Failed to fetch login attempts:', err);
+        res.status(500).json({ error: 'Failed to fetch login attempts' });
     }
 });
 

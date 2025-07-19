@@ -3,13 +3,38 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import SecurityTester from './SecurityTester';
 import { Shield, Lock, Key, Cpu, Database, CheckCircle, LogOut, User } from 'lucide-react';
-import api from '../services/api';
+import api, { authAPI } from '../services/api';
+
+// Define a type for login attempts
+interface LoginAttempt {
+  status: string;
+  ip: string;
+  timestamp: string;
+}
 
 const Home: React.FC = () => {
   const { user, logout, token } = useAuth();
   const navigate = useNavigate();
   const [protectedData, setProtectedData] = React.useState<string | null>(null);
   const [showToken, setShowToken] = React.useState(false);
+  const [hideProtectedEndpoint, setHideProtectedEndpoint] = React.useState(false);
+  const [hideShowToken, setHideShowToken] = React.useState(false);
+  const [loginAttempts, setLoginAttempts] = React.useState<LoginAttempt[]>([]);
+
+  React.useEffect(() => {
+    // Check if user just signed up
+    if (localStorage.getItem('justSignedUp')) {
+      setHideProtectedEndpoint(true);
+      setHideShowToken(true);
+      localStorage.removeItem('justSignedUp'); // Only hide once
+    }
+    // Fetch login attempts
+    if (user) {
+      authAPI.getLoginAttempts(user).then((data) => {
+        setLoginAttempts(data.attempts || []);
+      });
+    }
+  }, [user]);
 
   const handleLogout = () => {
     logout();
@@ -228,21 +253,25 @@ const Home: React.FC = () => {
         <SecurityTester />
         <div className="mt-8 w-full max-w-5xl flex flex-col md:flex-row justify-between items-start gap-8 mx-auto">
           <div className="flex-1 flex flex-col items-start w-full md:w-1/2">
-            <button onClick={testProtectedEndpoint} className="px-4 py-2 bg-orange-600 text-white rounded mb-4">
-              Test Protected Endpoint
-            </button>
+            {!hideProtectedEndpoint && (
+              <button onClick={testProtectedEndpoint} className="px-4 py-2 bg-orange-600 text-white rounded mb-4">
+                Test Protected Endpoint
+              </button>
+            )}
             {protectedData && (
               <pre className="bg-gray-900 text-green-400 p-4 rounded mt-2 w-full max-w-xl text-left">{protectedData}</pre>
             )}
           </div>
           <div className="flex-1 flex flex-col items-end w-full md:w-1/2">
-            <button
-              onClick={() => setShowToken((prev) => !prev)}
-              className="px-4 py-2 bg-orange-600 text-white rounded mb-4 self-end"
-            >
-              {showToken ? 'Hide JWT Token' : 'Show JWT Token'}
-            </button>
-            {showToken && token && (
+            {!hideShowToken && (
+              <button
+                onClick={() => setShowToken((prev) => !prev)}
+                className="px-4 py-2 bg-orange-600 text-white rounded mb-4 self-end"
+              >
+                {showToken ? 'Hide JWT Token' : 'Show JWT Token'}
+              </button>
+            )}
+            {showToken && token && !hideShowToken && (
               <div className="w-full max-w-xl flex flex-col items-end self-end">
                 <span className="text-orange-400 font-semibold mb-2 self-end">Your JWT Token:</span>
                 <div className="bg-gray-900 text-orange-300 p-4 rounded border border-orange-400 shadow-inner w-full overflow-x-auto break-all text-sm select-all text-right self-end" style={{ wordBreak: 'break-all' }}>
@@ -251,6 +280,33 @@ const Home: React.FC = () => {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Login Attempts Section */}
+        <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10 mt-8 max-w-3xl mx-auto">
+          <h3 className="text-xl font-bold text-white mb-4">Recent Login Attempts</h3>
+          {loginAttempts.length === 0 ? (
+            <p className="text-gray-400">No login attempts found.</p>
+          ) : (
+            <table className="min-w-full text-sm text-gray-300">
+              <thead>
+                <tr>
+                  <th className="px-2 py-1 text-left">Status</th>
+                  <th className="px-2 py-1 text-left">IP</th>
+                  <th className="px-2 py-1 text-left">Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loginAttempts.slice(0, 10).map((attempt, idx) => (
+                  <tr key={idx}>
+                    <td className={`px-2 py-1 font-semibold ${attempt.status === 'success' ? 'text-green-400' : 'text-red-400'}`}>{attempt.status}</td>
+                    <td className="px-2 py-1">{attempt.ip}</td>
+                    <td className="px-2 py-1">{new Date(attempt.timestamp).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </main>
     </div>

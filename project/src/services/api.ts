@@ -42,6 +42,11 @@ export const authAPI = {
     const response = await api.get(`/check-username/${username}`);
     return response.data;
   },
+
+  getLoginAttempts: async (username: string) => {
+    const response = await api.get(`/login-attempts/${username}`);
+    return response.data;
+  },
 };
 
 export const webAuthnAPI = {
